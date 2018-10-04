@@ -3,5 +3,4 @@ dist: xenial
 go:
 - master
 script:
-  - init.sh
-  
+- ./init.sh
