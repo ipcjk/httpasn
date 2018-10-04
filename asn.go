@@ -19,7 +19,6 @@ type ASN struct {
 }
 
 func binSearchForASN(asn []ASN, ip int) (int64, error) {
-
 	if len(asn) == 0 {
 		return 0, nil
 	}
@@ -43,7 +42,6 @@ func binSearchForASN(asn []ASN, ip int) (int64, error) {
 }
 
 func loadASN(fileName string, asnList map[int64]bool) ([]ASN, error) {
-
 	var asns []ASN
 
 	file, err := os.Open(fileName)

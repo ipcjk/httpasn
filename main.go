@@ -40,7 +40,6 @@ func main() {
 		if _, ok := asnToUrl[r.RequestURI]; !ok {
 			fmt.Fprintf(w, "Unknown target / not configured target %q", r.RequestURI)
 			return
-
 		}
 
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -77,7 +76,6 @@ func main() {
 }
 
 func parseRedirectFile() (map[string]map[int64]string, map[int64]bool) {
-
 	var asnToURL = make(map[string]map[int64]string)
 	var asnList = make(map[int64]bool)
 
