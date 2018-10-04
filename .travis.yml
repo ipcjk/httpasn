@@ -2,3 +2,6 @@ language: go
 dist: xenial
 go:
 - master
+script:
+  - init.sh
+  
