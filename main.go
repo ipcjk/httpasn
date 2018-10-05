@@ -14,11 +14,15 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func main() {
 	loadAll := flag.Bool("loadAll", false, "loadAll as from the database, default: only load asn in the redirect file")
 	ip2asnFile := flag.String("database", "ip2asn-combined.tsv.gz", "path to the ip database")
+	certFile := flag.String("cert", "./localhost.pem", "file/path to certificate for tls server")
+	certKey := flag.String("key", "./localhost-key.pem", "file/path to private key for tls server")
+	ssl := flag.Bool("ssl", false, "start also a thread for ssl-server")
 
 	flag.Parse()
 
@@ -35,7 +39,7 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var asn int64
-		var ipInt int
+		var ip int
 
 		if _, ok := asnToUrl[r.RequestURI]; !ok {
 			fmt.Fprintf(w, "Unknown target / not configured target %q", r.RequestURI)
@@ -47,32 +51,46 @@ func main() {
 			goto failedTarget
 		}
 
-		ipInt, err = convertIP(host)
+		ip, err = convertIP(host)
 		if err != nil {
 			goto failedTarget
 		}
 
-		asn, err = binSearchForASN(asns, ipInt)
+		asn, err = binSearchForASN(asns, ip)
 		if asn == 0 || err != nil {
 			goto failedTarget
 		}
 
 		if _, ok := asnToUrl[r.RequestURI][asn]; ok {
-			goto goodTarget
+			http.Redirect(w, r, asnToUrl[r.RequestURI][asn]+r.RequestURI, 301)
+			return
 		}
 
 	failedTarget:
 		http.Redirect(w, r, asnToUrl[r.RequestURI][0]+r.RequestURI, 301)
 		return
 
-	goodTarget:
-		http.Redirect(w, r, asnToUrl[r.RequestURI][asn]+r.RequestURI, 301)
-		return
-
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	wg := sync.WaitGroup{}
 
+	if *ssl {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := http.ListenAndServeTLS(":8443", *certFile, *certKey, nil)
+			log.Fatal(err)
+		}()
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := http.ListenAndServe(":8080", nil)
+		log.Fatal(err)
+	}()
+
+	wg.Wait()
 }
 
 func parseRedirectFile() (map[string]map[int64]string, map[int64]bool) {
