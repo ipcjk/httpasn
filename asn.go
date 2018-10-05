@@ -31,10 +31,10 @@ func binSearchForASN(asn []ASN, ip int) (int64, error) {
 		/* is there a range "hit"? */
 		if asn[mid].startIP <= ip && asn[mid].endIP >= ip {
 			return asn[mid].number, nil
-		} else if asn[mid].startIP < ip {
-			low = mid + 1
 		} else if asn[mid].startIP > ip {
 			high = mid - 1
+		} else {
+			low = mid + 1
 		}
 	}
 
