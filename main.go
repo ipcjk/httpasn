@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"golang.org/x/crypto/acme/autocert"
 	"log"
 	"math"
 	"net"
@@ -18,11 +19,15 @@ import (
 )
 
 func main() {
-	loadAll := flag.Bool("loadAll", false, "loadAll as from the database, default: only load asn in the redirect file")
+	loadAll := flag.Bool("loadall", false, "loadAll as from the database, default: only load asn in the redirect file")
 	ip2asnFile := flag.String("database", "ip2asn-combined.tsv.gz", "path to the ip database")
 	certFile := flag.String("cert", "./localhost.pem", "file/path to certificate for tls server")
 	certKey := flag.String("key", "./localhost-key.pem", "file/path to private key for tls server")
-	ssl := flag.Bool("ssl", false, "start also a thread for ssl-server")
+	ssl := flag.Bool("ssl", false, "start also a thread for a  ssl-server with custom ssl cert/key")
+	autoSSL := flag.String("autossl", "", "domain name for LE cert")
+	sslCache := flag.String("sslcache", "", "directory to save LE cache certificates")
+	httpsAddr := flag.String("https", ":443", "port for the tls listener")
+	httpAddr := flag.String("http", ":80", "port for the default non-tls listener")
 
 	flag.Parse()
 
@@ -72,21 +77,41 @@ func main() {
 
 	})
 
+	var m *autocert.Manager
 	wg := sync.WaitGroup{}
 
 	if *ssl {
+		go func() {
+			defer wg.Done()
+			err := http.ListenAndServeTLS(*httpsAddr, *certFile, *certKey, nil)
+			log.Fatal(err)
+		}()
+	}
+
+	if *autoSSL != "" {
+		m = &autocert.Manager{
+			Cache:      autocert.DirCache(*sslCache),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(*autoSSL)}
+
+		s := &http.Server{
+			Addr:      *httpsAddr,
+			TLSConfig: m.TLSConfig(),
+		}
+
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := http.ListenAndServeTLS(":8443", *certFile, *certKey, nil)
+			err := s.ListenAndServeTLS("", "")
 			log.Fatal(err)
 		}()
+
 	}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := http.ListenAndServe(":8080", nil)
+		err := http.ListenAndServe(*httpAddr, m.HTTPHandler(nil))
 		log.Fatal(err)
 	}()
 
