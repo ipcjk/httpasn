@@ -67,12 +67,12 @@ func main() {
 		}
 
 		if _, ok := asnToUrl[r.RequestURI][asn]; ok {
-			http.Redirect(w, r, asnToUrl[r.RequestURI][asn]+r.RequestURI, 301)
+			http.Redirect(w, r, asnToUrl[r.RequestURI][asn], 301)
 			return
 		}
 
 	failedTarget:
-		http.Redirect(w, r, asnToUrl[r.RequestURI][0]+r.RequestURI, 301)
+		http.Redirect(w, r, asnToUrl[r.RequestURI][0], 301)
 		return
 
 	})
