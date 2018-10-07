@@ -1,4 +1,4 @@
-#url, ASN, redirectTarget
+#URI,ASN,TARGET-URL
 /event1,3320,https://telekom-cdn
 /event1,31334,https://vodafone-cdn
 /event1,0,https://default-cdn

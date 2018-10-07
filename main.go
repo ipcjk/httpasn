@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"golang.org/x/crypto/acme/autocert"
 	"log"
-	"math"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -44,7 +44,6 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var asn int64
-		var ip int
 
 		if _, ok := asnToUrl[r.RequestURI]; !ok {
 			fmt.Fprintf(w, "Unknown target / not configured target %q", r.RequestURI)
@@ -56,12 +55,7 @@ func main() {
 			goto failedTarget
 		}
 
-		ip, err = convertIP(host)
-		if err != nil {
-			goto failedTarget
-		}
-
-		asn, err = binSearchForASN(asns, ip)
+		asn, err = binSearchForASN(asns, convertIP(host))
 		if asn == 0 || err != nil {
 			goto failedTarget
 		}
@@ -159,28 +153,11 @@ func parseRedirectFile() (map[string]map[int64]string, map[int64]bool) {
 
 }
 
-func convertIP(ip string) (int, error) {
-	var sum float64
-	octet := strings.Split(ip, ".")
-
-	if len(octet) != 4 {
-		return 0, fmt.Errorf("not enough octets found in input ip streing")
+func convertIP(ipAddr string) *big.Int {
+	if strings.Contains(ipAddr, ":") {
+		return big.NewInt(0).SetBytes(net.ParseIP(ipAddr))
+	} else {
+		ip := (net.ParseIP(ipAddr)).To4()
+		return big.NewInt(0).SetBytes(ip)
 	}
-
-	var j = 0
-	for i := 3; i >= 0; i-- {
-		decimal, err := strconv.ParseFloat(octet[j], 64)
-		if err != nil {
-			return 0, fmt.Errorf("can't parse input to float: %s", err)
-		}
-
-		if int(decimal) > 255 || int(decimal) < 0 {
-			return 0, fmt.Errorf("ip octet is an integer that is larger or smaller then allowed 0 or 255")
-		}
-
-		sum += math.Pow(256, float64(i)) * decimal
-		j++
-	}
-
-	return int(sum), nil
 }

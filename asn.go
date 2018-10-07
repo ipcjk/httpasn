@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"fmt"
+	"math/big"
 	"os"
 	"sort"
 	"strconv"
@@ -11,14 +12,14 @@ import (
 )
 
 type ASN struct {
-	startIP     int
-	endIP       int
+	startIP     *big.Int
+	endIP       *big.Int
 	number      int64
 	country     string
 	description string
 }
 
-func binSearchForASN(asn []ASN, ip int) (int64, error) {
+func binSearchForASN(asn []ASN, ip *big.Int) (int64, error) {
 	if len(asn) == 0 {
 		return 0, nil
 	}
@@ -28,10 +29,14 @@ func binSearchForASN(asn []ASN, ip int) (int64, error) {
 
 	for low <= high {
 		mid := (low + high) / 2
+
 		/* is there a range "hit"? */
-		if asn[mid].startIP <= ip && asn[mid].endIP >= ip {
+		cmp := asn[mid].startIP.Cmp(ip)
+		cmp2 := asn[mid].endIP.Cmp(ip)
+
+		if cmp <= 0 && cmp2 >= 0 {
 			return asn[mid].number, nil
-		} else if asn[mid].startIP > ip {
+		} else if cmp == 1 {
 			high = mid - 1
 		} else {
 			low = mid + 1
@@ -76,22 +81,21 @@ func loadASN(fileName string, asnList map[int64]bool) ([]ASN, error) {
 		/* if no asn list given = loadAll - parameter set, then load all asns */
 		if asnList[asn] || len(asnList) == 0 {
 
-			startIP, err := convertIP(cols[0])
-			if err != nil {
-				continue
-			}
+			startIP := convertIP(cols[0])
+			endIP := convertIP(cols[1])
 
-			endIP, err := convertIP(cols[1])
-			if err != nil {
-				continue
-			}
 			asns = append(asns, ASN{startIP, endIP, asn, cols[3], cols[4]})
 		}
 	}
 
 	/* sort the slice for binary search */
 	sort.Slice(asns, func(i, j int) bool {
-		return asns[i].startIP < asns[j].startIP
+		cmp := asns[i].startIP.Cmp(asns[j].startIP)
+		if cmp == 0 || cmp == -1 {
+			return true
+		} else {
+			return false
+		}
 	})
 
 	return asns, nil

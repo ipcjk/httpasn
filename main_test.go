@@ -1,42 +1,34 @@
 package main
 
 import (
+	"math/big"
 	"net"
 	"testing"
 )
 
 func TestConvertIP(t *testing.T) {
-	var number int
+	var number *big.Int
 
 	host, _, err := net.SplitHostPort("188.192.41.178:60719")
 	if err != nil {
 		t.Error("splitting hostport gone wrong")
 	}
 
-	number, err = convertIP(host)
-
-	if err != nil {
-		t.Errorf("Error converting ip address")
-	}
-
-	if number != 3166710194 {
+	number = convertIP(host)
+	if number.Cmp(big.NewInt(int64(3166710194))) != 0 {
 		t.Error("Converted number is wrong")
 	}
 
-	number, err = convertIP("4.2.2.1")
-
-	if err != nil {
-		t.Errorf("Error converting ip address")
-	}
-
-	if number != 67240449 {
+	number = convertIP("4.2.2.1")
+	if number.Cmp(big.NewInt(int64(67240449))) != 0 {
 		t.Error("Converted ip to integer is wrong")
 	}
 
-	number, err = convertIP("256.0.3.-1")
-
-	if err == nil {
-		t.Errorf("whoops, convertIP() converted broken IP without giving an error")
+	number = convertIP("2a02::1308:66")
+	x := big.NewInt(0)
+	x.SetString("55837960416683536317216957524752203878 ", 10)
+	if number.Cmp(x) != 0 {
+		t.Error("Converted ipv6 to integer is wrong", number)
 	}
 
 }
@@ -82,26 +74,17 @@ func TestBinarySearchForASN(t *testing.T) {
 		t.Errorf("Too less ip subnets found in database file, found only: %d", len(asns))
 	}
 
-	/* search inside */
-	ip, err := convertIP("178.248.240.255")
-	if err != nil {
-		t.Error("Error converting ip address")
-	}
-
-	as, err := binSearchForASN(asns, ip)
+	as, err := binSearchForASN(asns, convertIP("178.248.240.6"))
 
 	if err != nil {
 		t.Error(err)
 	}
+
 	if as != 196922 {
 		t.Errorf("Wrong as-number returned or as-number not found, expected 196922, but got %d", as)
 	}
 
-	ip, err = convertIP("31.212.9.5")
-	if err != nil {
-		t.Error("Error converting ip address")
-	}
-	as, err = binSearchForASN(asns, ip)
+	as, err = binSearchForASN(asns, convertIP("31.212.9.5"))
 
 	if err != nil {
 		t.Error(err)
@@ -111,17 +94,20 @@ func TestBinarySearchForASN(t *testing.T) {
 		t.Errorf("Wrong as-number returned or as-number not found, expected 3320, but got %d", as)
 	}
 
-	ip, err = convertIP("4.2.2.1")
-	if err != nil {
-		t.Error("Error converting ip address")
-	}
-
-	as, err = binSearchForASN(asns, 3758096127)
+	as, err = binSearchForASN(asns, big.NewInt(int64(3758096127)))
 	if err != nil {
 		t.Error(err)
 	}
 	if as != 55415 {
 		t.Errorf("Wrong as-number returned or as-number not found, expected 55415, but got %d", as)
+	}
+
+	as, err = binSearchForASN(asns, convertIP("2a02:1308::1"))
+	if err != nil {
+		t.Error(err)
+	}
+	if as != 196922 {
+		t.Errorf("Wrong as-number returned or as-number not found, expected 196922, but got %d", as)
 	}
 
 }
