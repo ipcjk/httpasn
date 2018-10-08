@@ -105,8 +105,11 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := http.ListenAndServe(*httpAddr, m.HTTPHandler(nil))
-		log.Fatal(err)
+		if m != nil {
+			http.ListenAndServe(*httpAddr, m.HTTPHandler(nil))
+		} else {
+			http.ListenAndServe(*httpAddr, nil)
+		}
 	}()
 
 	wg.Wait()
