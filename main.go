@@ -31,6 +31,8 @@ func main() {
 
 	flag.Parse()
 
+	var cache = make(map[string]int64, 2^10)
+
 	asnToUrl, asnList := parseRedirectFile()
 
 	if *loadAll {
@@ -44,15 +46,21 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var asn int64
+		var host string
 
 		if _, ok := asnToUrl[r.RequestURI]; !ok {
 			fmt.Fprintf(w, "Unknown target / not configured target %q", r.RequestURI)
 			return
 		}
 
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		host, _, err = net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			goto failedTarget
+		}
+
+		if _, ok := cache[host]; ok {
+			asn = cache[host]
+			goto goodTarget
 		}
 
 		asn, err = binSearchForASN(asns, convertIP(host))
@@ -61,12 +69,17 @@ func main() {
 		}
 
 		if _, ok := asnToUrl[r.RequestURI][asn]; ok {
-			http.Redirect(w, r, asnToUrl[r.RequestURI][asn], 301)
-			return
+			cache[host] = asn
+			fmt.Println(cache)
+			goto goodTarget
 		}
 
 	failedTarget:
 		http.Redirect(w, r, asnToUrl[r.RequestURI][0], 301)
+		return
+
+	goodTarget:
+		http.Redirect(w, r, asnToUrl[r.RequestURI][asn], 301)
 		return
 
 	})
